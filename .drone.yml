@@ -1,0 +1,46 @@
+kind: pipeline
+name: default
+
+steps:
+- name: test
+  image: golang
+  commands:
+    - go vet
+    - go test -v -cover
+  when:
+    event:
+    - push
+    - pull_request
+    - tag
+
+- name: build
+  image: rancher/dapper:v0.4.1
+  commands:
+  - dapper ci
+  volumes:
+  - name: docker
+    path: /var/run/docker.sock
+
+- name: docker-publish
+  image: plugins/docker
+  settings:
+    dockerfile: package/Dockerfile
+    password:
+      from_secret: reg-cnrancher-password
+    repo: guangbo/drone-test2
+    tag: "${DRONE_TAG}-amd64"
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+  when:
+    ref:
+    - refs/head/master
+    - refs/tags/*
+    event:
+    - tag
+
+volumes:
+- name: docker
+  host:
+    path: /var/run/docker.sock
